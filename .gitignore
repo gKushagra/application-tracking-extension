@@ -1,0 +1,4 @@
+/posting-service/node_modules
+/posting-service/.env
+.DS_Store
+Docs.html
