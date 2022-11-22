@@ -1,5 +1,6 @@
-/node_modules
-.env
+/src/node_modules
+/src/.env
+/src/.DS_Store
+/src/jobHelper.db
+/src/dist
 .DS_Store
-Docs.html
-jobHelper.db
