@@ -24,6 +24,7 @@ knex.schema.createTableIfNotExists("users", function (table) {
 }).then(() => {
     knex.schema.createTableIfNotExists("jobs", function (table) {
         table.uuid("job_id");
+        table.string('link');
         table.string("company");
         table.string("title");
         table.timestamp("posted_on");
@@ -33,6 +34,8 @@ knex.schema.createTableIfNotExists("users", function (table) {
         table.jsonb("todo");
         table.bigInteger("score");
         table.uuid("user_id");
+        table.text("resume");
+        table.text("hash");
     }).then(() => {
         knex('users')
             .insert({
@@ -47,6 +50,7 @@ knex.schema.createTableIfNotExists("users", function (table) {
                 knex('jobs')
                     .insert({
                         job_id: 'd660a52c-17e6-4be0-aea7-c9e490d5301b',
+                        link: 'test',
                         company: 'test',
                         title: 'test',
                         posted_on: knex.fn.now(),
@@ -55,12 +59,23 @@ knex.schema.createTableIfNotExists("users", function (table) {
                         contacts: { test: 'test' },
                         todo: { test: 'test' },
                         score: 1,
-                        user_id: 'd660a52c-17e6-4be0-aea7-c9e490d5301a'
+                        user_id: 'd660a52c-17e6-4be0-aea7-c9e490d5301a',
+                        resume: 'test',
+                        hash: 'test'
                     })
                     .then(() => { console.info('jobs table created') });
             });
     });
 });
+// knex.schema.dropTableIfExists('users')
+//     .then(() => {
+//         knex.schema.dropTableIfExists('jobs')
+//             .then(() => {
+
+//             })
+//             .catch((err) => console.log(err));
+//     })
+//     .catch((err) => console.log(err));
 
 const getAccessCode = (length) => {
     var result = '';
@@ -86,17 +101,34 @@ const checkAccess = (req, res, next) => {
         });
 }
 
+app.post('/api/v1/:userid/verify', async (req, res) => {
+    const { accessCode } = req.body;
+    const userId = req.params.userid;
+    knex('users')
+        .select()
+        .where('user_id', '=', userId)
+        .andWhere('access_code', '=', accessCode)
+        .then((data) => {
+            if (data.length === 1 && data[0]['access_code'] === accessCode) res.sendStatus(200)
+            else res.sendStatus(401)
+        })
+        .catch((err) => {
+            console.log(err);
+            res.sendStatus(500);
+        });
+});
+
 app.post('/api/v1', async (req, res) => {
-    const { name, recoveryEmail, searchParameters } = req.body;
+    const { name, recoveryEmail } = req.body;
     const userId = uuid();
     const accessCode = getAccessCode(6);
     knex('users')
         .insert({
             user_id: userId,
-            name, access_code:
-                accessCode,
+            name,
+            access_code: accessCode,
             recovery_email: recoveryEmail,
-            search_parameters: searchParameters
+            search_parameters: ''
         })
         .then(() => res.status(200).json({ userId, name, accessCode }))
         .catch((error) => {
@@ -121,17 +153,85 @@ app.put('/api/v1/:userid', checkAccess, async (req, res) => {
         });
 });
 
-app.post('/api/v1/:userid/job', checkAccess, async (req, res) => {
-    /**
-     * processing logic:
-     *  - get search parameters from user_id Q1
-     *  - calculate score, where score = (no. of search param matches in descp.) / (total search params)
-     *  - insert job Q2
-     */
+app.get('/api/v1/:userid/jobs/check', checkAccess, async (req, res) => {
+    const userId = req.params.userid;
+    const hash = req.query.hash;
+    knex('jobs')
+        .select('job_id', 'status', 'score')
+        .where('hash', '=', hash)
+        .then((data) => res.status(200).json(data))
+        .catch((err) => {
+            console.log(err);
+            res.sendStatus(500);
+        });
 });
 
-app.put('/api/v1/:userid/job/:jobid', checkAccess, async (req, res) => {
-    const { company, title, postedOn, status, contacts, todo } = req.body;
+app.get('/api/v1/:userid/jobs', checkAccess, async (req, res) => {
+    const userId = req.params.userid;
+    const offset = req.query.offset;
+    const limit = req.query.limit;
+    knex('jobs')
+        .select()
+        .where('user_id', '=', userId)
+        .offset(offset)
+        .limit(limit)
+        .then((data) => res.status(200).json(data))
+        .catch((error) => {
+            console.log(error);
+            res.sendStatus(500);
+        });
+});
+
+app.post('/api/v1/:userid/jobs', checkAccess, async (req, res) => {
+    const { company, link, title, status, description, contacts, todo, hash } = req.body;
+    const userId = req.params.userid;
+    const jobId = uuid();
+    const postedOn = new Date().toUTCString();
+    var score = 0;
+    knex('users')
+        .select('search_parameters')
+        .where('user_id', '=', userId)
+        .then((data) => {
+            if (data.length > 0 && data[0]['search_parameters'] !== '') {
+                const searchParameters = data[0]['search_parameters'].split(',');
+                if (searchParameters.length > 0) {
+                    var counter = 0;
+                    for (var i = 0; i < searchParameters.length; i++) {
+                        var regex = new RegExp(searchParameters[i], "gi");
+                        counter = (description.match(regex) || []).length > 0 ? (counter + 1) : counter;
+                    }
+                    score = counter / searchParameters.length;
+                }
+            }
+            knex('jobs')
+                .insert({
+                    job_id: jobId,
+                    link,
+                    company,
+                    title,
+                    posted_on: postedOn,
+                    status,
+                    description,
+                    contacts,
+                    todo,
+                    score,
+                    user_id: userId,
+                    hash
+                })
+                .then(() => res.status(200).json({ status, score }))
+                .catch(error => {
+                    console.log(error);
+                    res.sendStatus(500);
+                });
+        })
+        .catch(error => {
+            console.log(error);
+            res.sendStatus(500);
+        });
+});
+
+app.put('/api/v1/:userid/jobs/:jobid', checkAccess, async (req, res) => {
+    const { company, title, postedOn, status, contacts, todo, resume } = req.body;
     const userId = req.params.userid;
     const jobId = req.params.jobid;
     knex('jobs')
@@ -141,7 +241,8 @@ app.put('/api/v1/:userid/job/:jobid', checkAccess, async (req, res) => {
             posted_on: postedOn,
             status,
             contacts,
-            todo
+            todo,
+            resume
         })
         .where('job_id', '=', jobId)
         .andWhere('user_id', '=', userId)
