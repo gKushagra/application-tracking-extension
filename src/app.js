@@ -5,17 +5,25 @@ const cors = require('cors');
 const { parse } = require('himalaya');
 const flat = require('flat');
 const { Curl } = require('node-libcurl');
+
 const app = express();
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cors());
 app.use(express.static('www'));
+
 const knex = require('knex')({
-    client: 'sqlite3',
+    client: 'pg',
     connection: {
-        filename: __dirname + '/jobHelper.db'
+        host: process.env.PG_HOST,
+        port: process.env.PG_PORT,
+        user: process.env.PG_USER,
+        password: process.env.PG_PASS,
+        database: process.env.PG_DB
     }
 });
+
 knex.schema.createTableIfNotExists("users", function (table) {
     table.uuid("user_id");
     table.string("name");
@@ -68,15 +76,6 @@ knex.schema.createTableIfNotExists("users", function (table) {
             });
     });
 });
-// knex.schema.dropTableIfExists('users')
-//     .then(() => {
-//         knex.schema.dropTableIfExists('jobs')
-//             .then(() => {
-
-//             })
-//             .catch((err) => console.log(err));
-//     })
-//     .catch((err) => console.log(err));
 
 const getAccessCode = (length) => {
     var result = '';
@@ -87,6 +86,7 @@ const getAccessCode = (length) => {
     }
     return result;
 }
+
 const checkAccess = (req, res, next) => {
     const userId = req.params.userid;
     knex.select()
@@ -303,6 +303,4 @@ app.get('/api/v1/:userid/tools/parse', checkAccess, async (req, res) => {
     curl.perform();
 });
 
-app.listen(5454, () => console.log('Posting Service running on port 5454'));
-
-module.exports = app;
+app.listen(7657, () => console.log('Job helper api listening on Port 7657'));

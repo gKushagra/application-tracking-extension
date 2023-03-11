@@ -5,7 +5,8 @@
   "main": "app.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "nodemon app.js",
+    "start": "node app.js",
+    "dev": "nodemon app.js",
     "build": "webpack"
   },
   "keywords": [
@@ -21,6 +22,7 @@
     "himalaya": "^1.1.0",
     "knex": "^2.3.0",
     "node-libcurl": "^3.0.0",
+    "pg": "^8.10.0",
     "sqlite3": "^5.1.2",
     "uuid": "^9.0.0"
   },

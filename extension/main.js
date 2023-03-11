@@ -15,7 +15,7 @@
         viewBoxItem2El = document.getElementById('root-302'),
         viewBoxItem2LabelEl = document.getElementById('root-3020'),
         viewBoxItem2TextEl = document.getElementById('root-3021'),
-        apiUrl = 'http://localhost:5454/api/v1';
+        apiUrl = 'https://jobsapi.softwright.in/api/v1';
 
     registerBoxEL.style.display = 'none';
     jobBoxEl.style.display = 'none';
