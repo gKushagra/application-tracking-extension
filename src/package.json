@@ -23,7 +23,6 @@
     "knex": "^2.3.0",
     "node-libcurl": "^3.0.0",
     "pg": "^8.10.0",
-    "sqlite3": "^5.1.2",
     "uuid": "^9.0.0"
   },
   "devDependencies": {
