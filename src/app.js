@@ -5,16 +5,25 @@ const cors = require('cors');
 const { parse } = require('himalaya');
 const flat = require('flat');
 const { Curl } = require('node-libcurl');
+
 const app = express();
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cors());
+app.use(express.static('www'));
+
 const knex = require('knex')({
-    client: 'sqlite3',
+    client: 'pg',
     connection: {
-        filename: __dirname + '/jobHelper.db'
+        host: process.env.PG_HOST,
+        port: process.env.PG_PORT,
+        user: process.env.PG_USER,
+        password: process.env.PG_PASS,
+        database: process.env.PG_DB
     }
 });
+
 knex.schema.createTableIfNotExists("users", function (table) {
     table.uuid("user_id");
     table.string("name");
@@ -67,15 +76,6 @@ knex.schema.createTableIfNotExists("users", function (table) {
             });
     });
 });
-// knex.schema.dropTableIfExists('users')
-//     .then(() => {
-//         knex.schema.dropTableIfExists('jobs')
-//             .then(() => {
-
-//             })
-//             .catch((err) => console.log(err));
-//     })
-//     .catch((err) => console.log(err));
 
 const getAccessCode = (length) => {
     var result = '';
@@ -86,6 +86,7 @@ const getAccessCode = (length) => {
     }
     return result;
 }
+
 const checkAccess = (req, res, next) => {
     const userId = req.params.userid;
     knex.select()
@@ -100,6 +101,28 @@ const checkAccess = (req, res, next) => {
             res.sendStatus(500);
         });
 }
+
+app.get('/', async (req, res) => {
+    res.sendFile(__dirname + '/www/index.html');
+});
+
+app.post('/api/v1/login', async (req, res) => {
+    const { accessCode } = req.body;
+    knex('users')
+        .select()
+        .where('access_code', '=', accessCode)
+        .then((data) => {
+            if (data.length === 1 && data[0]['access_code'] === accessCode) {
+                res.status(200).json({ userId: data[0]['user_id'] });
+            } else {
+                res.sendStatus(401);
+            }
+        })
+        .catch((err) => {
+            console.log(err);
+            res.sendStatus(500);
+        });
+});
 
 app.post('/api/v1/:userid/verify', async (req, res) => {
     const { accessCode } = req.body;
@@ -168,13 +191,13 @@ app.get('/api/v1/:userid/jobs/check', checkAccess, async (req, res) => {
 
 app.get('/api/v1/:userid/jobs', checkAccess, async (req, res) => {
     const userId = req.params.userid;
-    const offset = req.query.offset;
-    const limit = req.query.limit;
+    // const offset = req.query.offset;
+    // const limit = req.query.limit;
     knex('jobs')
-        .select()
+        .select('company', 'job_id', 'link', 'posted_on', 'status', 'title')
         .where('user_id', '=', userId)
-        .offset(offset)
-        .limit(limit)
+        // .offset(offset)
+        // .limit(limit)
         .then((data) => res.status(200).json(data))
         .catch((error) => {
             console.log(error);
@@ -231,21 +254,14 @@ app.post('/api/v1/:userid/jobs', checkAccess, async (req, res) => {
 });
 
 app.put('/api/v1/:userid/jobs/:jobid', checkAccess, async (req, res) => {
-    const { company, title, postedOn, status, contacts, todo, resume } = req.body;
-    const userId = req.params.userid;
+    // const { company, title, postedOn, status, contacts, todo, resume } = req.body;
+    const { status } = req.body;
     const jobId = req.params.jobid;
     knex('jobs')
         .update({
-            company,
-            title,
-            posted_on: postedOn,
-            status,
-            contacts,
-            todo,
-            resume
+            status: status
         })
         .where('job_id', '=', jobId)
-        .andWhere('user_id', '=', userId)
         .then(() => res.sendStatus(200))
         .catch((error) => {
             console.error(error);
@@ -287,4 +303,4 @@ app.get('/api/v1/:userid/tools/parse', checkAccess, async (req, res) => {
     curl.perform();
 });
 
-app.listen(5454, () => console.log('Posting Service running on port 5454'));
+app.listen(7657, () => console.log('Job helper api listening on Port 7657'));
