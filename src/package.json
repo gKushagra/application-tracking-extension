@@ -1,16 +1,17 @@
 {
-  "name": "posting-service",
+  "name": "job-application-helper",
   "version": "1.0.0",
-  "description": "api for job-helper extension",
+  "description": "webapp for job-application-helper extension",
   "main": "app.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node app.js",
     "dev": "nodemon app.js",
     "build": "webpack"
   },
   "keywords": [
-    "node.js"
+    "node.js",
+    "pg",
+    "knex.js"
   ],
   "author": "Kushagra Gupta",
   "license": "Apache-2.0",
